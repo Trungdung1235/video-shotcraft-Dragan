@@ -30,7 +30,7 @@ const Film: React.FC<Props> = ({ title, images, shots }) => {
             </AbsoluteFill>} />}
         <div style={{ position: 'absolute', left: 100, right: 100, bottom: 48, padding: '18px 30px',
           borderRadius: 12, background: 'rgba(8,12,22,0.88)', color: 'white', fontFamily: 'Arial, sans-serif',
-          fontSize: 38, fontWeight: 600, textAlign: 'center', overflowWrap: 'anywhere' }}>{shot.caption || title}</div>
+          fontSize: 60, fontWeight: 600, textAlign: 'center', overflowWrap: 'anywhere' }}>{shot.caption || title}</div>
         <Sequence from={shot.recipe === 'tilt-reveal' ? 20 : 24} durationInFrames={Math.min(50, duration - 24)}>
           <Audio src={staticFile('audio/whoosh.mp3')} volume={0.32} />
         </Sequence>

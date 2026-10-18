@@ -8,7 +8,10 @@ import { spawnSync } from 'node:child_process';
 import { loadRequest, totalFrames, validateRequest, within } from './headless-lib.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const sample = JSON.parse(readFileSync(path.join(repo, 'render/request.json'), 'utf8'));
+// A fixed fixture: real render/request.json changes with every user's storyboard.
+const sample = { version: 1, prompt: 'Sample original-recipe film', title: 'Sample',
+  images: [{ repo: 'template/public/textures/live/projects-full.png' }],
+  shots: [{ recipe: 'tilt-reveal', image: 0, caption: 'Reveal' }, { recipe: 'drone-dive-landing', image: 0, caption: 'Dive' }] };
 test('Storyboard uses complete original shot durations', () => {
   assert.equal(totalFrames(validateRequest(sample)), 225);
 });
@@ -19,9 +22,14 @@ test('Reject absent assets, invented recipes, invalid image indices and ambiguou
   assert.throws(() => validateRequest({ ...sample, images: [{ file: 'a.png', url: 'https://example.com/a.png' }] }), /exactly one/);
 });
 test('Remote sources can come from process-only URLs without changing committed request', () => {
-  const request = loadRequest(path.join(repo, 'render/request.json'), { SHOTCRAFT_IMAGE_URLS: '["https://example.com/temporary.png?token=private"]' });
-  assert.equal(request.images[0].url, 'https://example.com/temporary.png?token=private');
-  assert.ok(sample.images[0].repo);
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'shotcraft-source-'));
+  try {
+    const filename = path.join(dir, 'request.json');
+    writeFileSync(filename, JSON.stringify(sample));
+    const request = loadRequest(filename, { SHOTCRAFT_IMAGE_URLS: '["https://example.com/temporary.png?token=private"]' });
+    assert.equal(request.images[0].url, 'https://example.com/temporary.png?token=private');
+    assert.deepEqual(JSON.parse(readFileSync(filename, 'utf8')), sample);
+  } finally { rmSync(dir, { recursive: true }); }
 });
 test('Repository input symlinks cannot escape the repository', () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'shotcraft-path-'));
