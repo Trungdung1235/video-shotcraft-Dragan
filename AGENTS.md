@@ -22,7 +22,7 @@ toolchain; do not replace their camera/motion with a generic slideshow.
    signed/private URLs without the user's permission. Never invent an attachment
    transport. If only a local file exists, explain that source access blocks the
    Actions render; do the remaining work and ask for a runner-accessible source.
-4. Run `node --test workbench/scripts/headless.test.mjs`. Commit only reviewed
+4. Run `node --test workbench/scripts/headless-checks.mjs`. Commit only reviewed
    code/request files, push a fresh `codex/render/<job-id>` branch, and prepare a
    PR; do not merge or change repository visibility/billing. Every future render
    branch must include this pipeline (until the setup PR is merged, branch from

@@ -45,7 +45,7 @@ jobs:
       - name: Install pinned original Remotion toolchain
         run: npm ci --prefix workbench
       - name: Validate request and inaccessible-image regressions
-        run: node --test workbench/scripts/headless.test.mjs
+        run: node --test workbench/scripts/headless-checks.mjs
       - name: Render original recipes and verify MP4
         env:
           SHOTCRAFT_PROMPT: ${{ inputs.prompt }}

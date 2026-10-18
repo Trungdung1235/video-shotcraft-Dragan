@@ -62,7 +62,7 @@ For local diagnostics (not required from the user):
 
 ```sh
 npm ci --prefix workbench
-node --test workbench/scripts/headless.test.mjs
+node --test workbench/scripts/headless-checks.mjs
 node workbench/scripts/render-headless.mjs render/request.json work/render-output
 ```
 
