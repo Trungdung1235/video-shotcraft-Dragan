@@ -187,7 +187,8 @@ const DashboardPage: React.FC<{ draw: number; dot: number; rows: number[] }> = (
 };
 const TYPE_H1 = 120;
 
-export const TiltReveal: React.FC = () => {
+// Content injection keeps the original camera, lighting and timing reusable headlessly.
+export const TiltRevealWithContent: React.FC<{ content?: React.ReactNode }> = ({ content }) => {
   const f = useCurrentFrame();
   const { p, rotX, scale: s0, bot, eye, persp } = poseAt(f);
   // 落定后极缓推近（hold 段机位活着）
@@ -261,7 +262,7 @@ export const TiltReveal: React.FC = () => {
               </svg>
             )}
             <div style={{ position: 'absolute', left: 0, top: 0, width: 1920, height: 1080, zoom: scale, filter: sigma > 0.5 ? 'url(#tilt-aa)' : undefined }}>
-              <DashboardPage draw={draw} dot={dot} rows={rows} />
+              {content ?? <DashboardPage draw={draw} dot={dot} rows={rows} />}
             </div>
             {/* 掠射受光：平躺时远端（页面下部，远离铰链）沉入夜色 */}
             <div style={{
@@ -297,3 +298,6 @@ export const TiltReveal: React.FC = () => {
     </AbsoluteFill>
   );
 };
+
+// Preserve the gallery/workbench's original zero-prop entry and output.
+export const TiltReveal: React.FC = () => <TiltRevealWithContent />;

@@ -65,7 +65,7 @@ const floorStyle: React.CSSProperties = {
   maskImage: `radial-gradient(ellipse ${FLOOR.w * 0.36}px ${FLOOR.h * 0.42}px at ${-FLOOR.x + 960}px ${-FLOOR.y + 600}px, #000 30%, transparent 100%)`,
 };
 
-const Scene: React.FC = () => {
+const Scene: React.FC<{ content?: React.ReactNode }> = ({ content }) => {
   const frame = useCurrentFrame();
   const p = travel(frame);
 
@@ -130,7 +130,7 @@ const Scene: React.FC = () => {
           >
             <div style={{ width: 1920 * Z, height: 1080 * Z, transform: `scale(${1 / Z})`, transformOrigin: '0 0' }}>
               <div style={{ zoom: Z }}>
-                <FakeDashboard variant="A" />
+                {content ?? <FakeDashboard variant="A" />}
               </div>
             </div>
           </div>
@@ -159,15 +159,17 @@ const Focus: React.FC = () => {
   );
 };
 
-export const DroneDiveLanding: React.FC = () => (
+export const DroneDiveLandingWithContent: React.FC<{ content?: React.ReactNode }> = ({ content }) => (
   <AbsoluteFill>
     {/* 背景静止，放在动态模糊之外：多重采样叠加大面积渐变会量化出色环 */}
     <Backdrop tone="light" light={{ x: 0.5, y: 0.12 }} grain={0} vignette={0.16} />
     <CameraMotionBlur shutterAngle={220} samples={12}>
-      <Scene />
+      <Scene content={content} />
     </CameraMotionBlur>
     <Focus />
     {/* 颗粒放在动态模糊之外：不被多重采样平均掉 */}
     <Grain opacity={0.06} />
   </AbsoluteFill>
 );
+
+export const DroneDiveLanding: React.FC = () => <DroneDiveLandingWithContent />;

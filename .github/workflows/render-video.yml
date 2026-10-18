@@ -1,0 +1,77 @@
+name: Render Video Shotcraft MP4
+run-name: Shotcraft MP4 · ${{ github.ref_name }}
+
+on:
+  push:
+    branches: ['codex/render/**']
+    paths:
+      - 'render/request.json'
+      - 'workbench/src/headless/**'
+      - 'workbench/scripts/*headless*'
+      - 'workbench/package*.json'
+      - 'demos/camera/**'
+      - '.github/workflows/render-video.yml'
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: Optional prompt/title override (Codex normally writes the storyboard)
+        type: string
+      image_urls:
+        description: 'Optional JSON array of direct HTTPS image URLs; use secrets for private URLs'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shotcraft-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: workbench/package-lock.json
+      - name: Install FFmpeg and ffprobe
+        run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+      - name: Install pinned original Remotion toolchain
+        run: npm ci --prefix workbench
+      - name: Validate request and inaccessible-image regressions
+        run: node --test workbench/scripts/headless.test.mjs
+      - name: Render original recipes and verify MP4
+        env:
+          SHOTCRAFT_PROMPT: ${{ inputs.prompt }}
+          SHOTCRAFT_IMAGE_URLS: ${{ inputs.image_urls || secrets.SHOTCRAFT_IMAGE_URLS }}
+        run: node workbench/scripts/render-headless.mjs render/request.json work/render-output
+      - name: Upload verified MP4 and QA evidence (7 days)
+        id: artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shotcraft-mp4-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/render-output/video.mp4
+            work/render-output/qa.json
+            work/render-output/ffprobe.json
+            work/render-output/contact-sheet.jpg
+            work/render-output/asset-preflight.png
+          if-no-files-found: error
+          retention-days: 7
+      - name: Write download instructions
+        env:
+          ARTIFACT_URL: ${{ steps.artifact.outputs.artifact-url }}
+        run: |
+          {
+            echo '### Verified Video Shotcraft MP4'
+            echo 'H.264 · 1920×1080 · 30fps · AAC audio. ffprobe and full decode passed.'
+            echo "Download artifact: $ARTIFACT_URL"
+            echo 'Extract the ZIP and open video.mp4. qa.json, ffprobe.json and contact-sheet.jpg are verification evidence.'
+            echo 'Artifact expires after 7 days. Sign in to GitHub with repository access to download.'
+          } >> "$GITHUB_STEP_SUMMARY"
