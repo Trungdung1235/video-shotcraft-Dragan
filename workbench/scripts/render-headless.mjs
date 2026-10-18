@@ -98,12 +98,13 @@ try {
   browser = await openBrowser('chrome', { browserExecutable: process.env.REMOTION_BROWSER_EXECUTABLE || undefined });
   const common = { serveUrl, inputProps: props, puppeteerInstance: browser };
   const preflight = await selectComposition({ ...common, id: 'AssetPreflight' });
-  await renderStill({ ...common, composition: preflight, frame: 0, imageFormat: 'png', output: path.join(output, 'asset-preflight.png') });
+  await renderStill({ ...common, composition: preflight, frame: 0, timeoutInMilliseconds: 120000,
+    imageFormat: 'png', output: path.join(output, 'asset-preflight.png') });
   const composition = await selectComposition({ ...common, id: 'HeadlessFilm' });
   if (composition.durationInFrames !== totalFrames(request)) throw new Error('Original recipe duration mismatch');
   let last = -1;
   await renderMedia({ ...common, composition, codec: 'h264', audioCodec: 'aac', pixelFormat: 'yuv420p', crf: 18,
-    concurrency: 2, outputLocation: path.join(output, 'video.mp4'),
+    concurrency: 2, timeoutInMilliseconds: 120000, outputLocation: path.join(output, 'video.mp4'),
     onProgress: ({ progress }) => { const pct = Math.floor(progress * 10) * 10; if (pct !== last) { console.log(`Render ${pct}%`); last = pct; } } });
   run(process.execPath, [path.join(wb, 'scripts/verify-headless.mjs'), path.join(output, 'video.mp4'), String(totalFrames(request)), output]);
   const report = JSON.parse(await readFile(path.join(output, 'qa.json'), 'utf8'));
