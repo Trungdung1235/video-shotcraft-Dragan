@@ -1,0 +1,21 @@
+{
+  "name": "Video Shotcraft · Motion Workbench",
+  "build": { "dockerfile": "Dockerfile" },
+  "remoteUser": "node",
+  "hostRequirements": { "cpus": 2, "memory": "8gb", "storage": "32gb" },
+  "forwardPorts": [5198],
+  "portsAttributes": {
+    "5198": {
+      "label": "Motion Workbench",
+      "protocol": "http",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "otherPortsAttributes": { "onAutoForward": "ignore" },
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+  "postStartCommand": "bash .devcontainer/start.sh",
+  "waitFor": "postCreateCommand",
+  "customizations": {
+    "codespaces": { "openFiles": ["docs/CODESPACES.vi.md"] }
+  }
+}

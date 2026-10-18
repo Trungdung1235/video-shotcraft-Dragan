@@ -84,13 +84,14 @@ const ExportButton: React.FC = () => {
   if (job?.status === "done")
     return (
       <>
-        <button
+        <a
           className="btn"
-          title={t("export.revealTitle")}
-          onClick={() => fetch(`/api/export/${job.id}/reveal`, { method: "POST" })}
+          title={t("export.downloadTitle")}
+          href={`/api/export/${job.id}/download`}
+          download
         >
-          {t("export.done")}
-        </button>
+          {t("export.download")}
+        </a>
         <button className="btn primary" onClick={start}>
           {t("export.again")}
         </button>

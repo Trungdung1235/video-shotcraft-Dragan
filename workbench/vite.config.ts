@@ -1,6 +1,7 @@
-import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { createReadStream, existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { isIP } from "node:net";
 import path from "node:path";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
@@ -13,6 +14,11 @@ import react from "@vitejs/plugin-react";
 const root = fileURLToPath(new URL(".", import.meta.url));
 // 工程链接了但没写 src/workbench.ts 清单时也回退到 stub（工作台只 import @proj/workbench 这一个模块）
 const proj = existsSync(path.join(root, "proj", "workbench.ts")) ? "proj" : "proj-stub";
+// Permit this Codespace only. Never disable Vite's host checks with `true` or
+// allow every app.github.dev host. The external proxy terminates TLS/WebSockets.
+const codespacesHost = process.env.CODESPACES === "true" && process.env.CODESPACE_NAME
+  ? `${process.env.CODESPACE_NAME}-5198.${process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN ?? "app.github.dev"}`
+  : undefined;
 
 /** 导出成片：dev server 内起 Remotion CLI 渲染，
  *  前端 POST /api/export 提交工程 JSON，轮询 GET /api/export/:id 取进度。 */
@@ -31,6 +37,31 @@ const renderExportPlugin = (): Plugin => {
   return {
     name: "wb-render-export",
     configureServer(server) {
+      // Ports opens `/`; import the original film on a fresh Codespaces visit.
+      // The existing manifest revision check preserves a user's saved edits.
+      server.middlewares.use((req, res, next) => {
+        // Custom plugin routes run before Vite's built-in host middleware.
+        // Apply the same narrow rule to the export API and startup redirect.
+        if (codespacesHost) {
+          let hostname = "";
+          try { hostname = new URL(`http://${req.headers.host ?? ""}`).hostname.toLowerCase(); } catch { /* reject below */ }
+          const ip = hostname.replace(/^\[|\]$/g, "");
+          if (hostname !== codespacesHost.toLowerCase() && hostname !== "localhost" &&
+              !hostname.endsWith(".localhost") && !isIP(ip)) {
+            res.statusCode = 403;
+            res.setHeader("Content-Type", "text/plain");
+            res.end("This Codespaces hostname is not allowed.");
+            return;
+          }
+        }
+        if (process.env.CODESPACES === "true" && req.method === "GET" && req.url === "/") {
+          res.statusCode = 307;
+          res.setHeader("Location", "/?import=project");
+          res.end();
+          return;
+        }
+        next();
+      });
       // 每个任务结束（成功/失败/同步失败）都即时删除 props 文件；启动时清掉历史残留
       const exportsDir = path.join(root, "exports");
       if (existsSync(exportsDir)) {
@@ -82,6 +113,11 @@ const renderExportPlugin = (): Plugin => {
               logTail: [],
             };
             jobs.set(id, job);
+            const failedToSpawn = (error: Error) => {
+              dropProps();
+              job.status = "error";
+              job.lastLine = error.message;
+            };
 
             const onChunk = (buf: Buffer) => {
               const lines = stripAnsi(buf.toString()).split(/[\r\n]+/).filter((l) => l.trim());
@@ -104,6 +140,7 @@ const renderExportPlugin = (): Plugin => {
               { cwd: root },
             );
             rsync.stderr.on("data", onChunk);
+            rsync.on("error", failedToSpawn);
             rsync.on("close", (rc) => {
               if (rc !== 0) {
                 dropProps();
@@ -126,6 +163,7 @@ const renderExportPlugin = (): Plugin => {
               );
               child.stdout.on("data", onChunk);
               child.stderr.on("data", onChunk);
+              child.on("error", failedToSpawn);
               child.on("close", (code) => {
                 dropProps(); // Remotion CLI 启动时已读完 props，成功失败都不再需要
                 job.status = code === 0 ? "done" : "error";
@@ -143,16 +181,38 @@ const renderExportPlugin = (): Plugin => {
         }
 
         // GET /api/export/:id —— 查进度
-        const m = sub.match(/^\/([a-z0-9]+)(\/reveal)?$/);
+        const m = sub.match(/^\/([a-z0-9]+)(?:\/(reveal|download))?$/);
         const job = m ? jobs.get(m[1]) : undefined;
         if (!job) {
           send(404, { error: "任务不存在" });
           return;
         }
         // POST /api/export/:id/reveal —— Finder 里显示成片
-        if (req.method === "POST" && m![2]) {
+        if (req.method === "POST" && m![2] === "reveal") {
           if (process.platform === "darwin") spawn("open", ["-R", path.join(root, job.output)]);
           send(200, { ok: true });
+          return;
+        }
+        // Same-origin download works behind the authenticated private Codespaces
+        // port. Only a completed, server-owned job can select an output file.
+        if (req.method === "GET" && m![2] === "download") {
+          if (job.status !== "done") {
+            send(409, { error: "The export is not complete" });
+            return;
+          }
+          const file = path.join(root, job.output);
+          if (!existsSync(file)) {
+            send(404, { error: "The exported file no longer exists" });
+            return;
+          }
+          res.setHeader("Content-Type", "video/mp4");
+          res.setHeader("Content-Length", statSync(file).size);
+          res.setHeader("Content-Disposition", `attachment; filename="video.mp4"; filename*=UTF-8''${encodeURIComponent(path.basename(file))}`);
+          res.setHeader("Cache-Control", "no-store");
+          const stream = createReadStream(file);
+          stream.on("error", () => res.destroy());
+          res.on("close", () => stream.destroy());
+          stream.pipe(res);
           return;
         }
         send(200, job);
@@ -164,7 +224,14 @@ const renderExportPlugin = (): Plugin => {
 export default defineConfig({
   plugins: [react(), renderExportPlugin()],
   // 5198：与 video-talkcraft 的工作台（5199）错开，两边可同时开
-  server: { port: 5198, strictPort: true },
+  server: {
+    port: 5198,
+    strictPort: true,
+    ...(codespacesHost ? {
+      allowedHosts: [codespacesHost],
+      hmr: { protocol: "wss", host: codespacesHost, clientPort: 443 },
+    } : {}),
+  },
   resolve: {
     preserveSymlinks: true,
     alias: { "@proj": path.join(root, proj), "@demos": path.join(root, "demosrc") },

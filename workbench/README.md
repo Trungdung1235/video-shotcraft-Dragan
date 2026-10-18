@@ -1,5 +1,9 @@
 # ShotCraft Workbench · Motion Workbench
 
+GitHub Codespaces（浏览器即可，无需本机终端）：见
+[越南语操作与计费指南](../docs/CODESPACES.vi.md)。导出完成后点 **Download MP4**
+直接下载；`scripts/open.mjs` 支持 `--link-only`（仅准备工程）与 `--host`（容器绑定地址）。
+
 > 面向使用者的图文指南（各区域与功能、截图）见 [GUIDE.md](GUIDE.md)；本文是技术说明。
 
 剪映式的成片后期台：多轨时间线 + 素材库（成片单元 / 150 个镜头卡 demo / 音效库 / 背景）+
