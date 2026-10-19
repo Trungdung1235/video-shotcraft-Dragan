@@ -61,3 +61,32 @@ test('GitHub runner refuses a Codex-only local attachment path', () => {
     assert.match(result.stderr, /not accessible on a GitHub runner/);
   } finally { rmSync(dir, { recursive: true }); }
 });
+test('MP4 verifier accepts limited-range H.264 with audio and rejects full-range or missing audio', () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'shotcraft-output-'));
+  const ffmpeg = (args) => {
+    const result = spawnSync('ffmpeg', ['-v', 'error', '-y', ...args], { encoding: 'utf8' });
+    assert.equal(result.status, 0, result.error?.message ?? result.stderr);
+  };
+  const verify = (file, name) => spawnSync(process.execPath,
+    [path.join(repo, 'workbench/scripts/verify-headless.mjs'), file, '9', path.join(dir, name)], { encoding: 'utf8' });
+  try {
+    // A codec test pattern only; production pictures always come from original recipes.
+    const valid = path.join(dir, 'valid.mp4');
+    ffmpeg(['-f', 'lavfi', '-i', 'testsrc2=size=1920x1080:rate=30', '-f', 'lavfi', '-i', 'sine=frequency=880:sample_rate=48000',
+      '-t', '0.3', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-colorspace', 'bt709', '-color_primaries', 'bt709',
+      '-color_trc', 'bt709', '-color_range', 'tv', '-c:a', 'aac', valid]);
+    const passed = verify(valid, 'valid-qa');
+    assert.equal(passed.status, 0, passed.stderr);
+    assert.equal(JSON.parse(readFileSync(path.join(dir, 'valid-qa/qa.json'), 'utf8')).passed, true);
+    const fullRange = path.join(dir, 'full-range.mp4');
+    ffmpeg(['-i', valid, '-c', 'copy', '-bsf:v', 'h264_metadata=video_full_range_flag=1', fullRange]);
+    const rejectedRange = verify(fullRange, 'range-qa');
+    assert.equal(rejectedRange.status, 1);
+    assert.match(rejectedRange.stderr, /yuvj420p/);
+    const noAudio = path.join(dir, 'no-audio.mp4');
+    ffmpeg(['-i', valid, '-c:v', 'copy', '-an', noAudio]);
+    const rejectedAudio = verify(noAudio, 'audio-qa');
+    assert.equal(rejectedAudio.status, 1);
+    assert.match(rejectedAudio.stderr, /Missing AAC audio/);
+  } finally { rmSync(dir, { recursive: true }); }
+});

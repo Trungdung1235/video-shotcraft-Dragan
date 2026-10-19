@@ -103,7 +103,7 @@ try {
   const composition = await selectComposition({ ...common, id: 'HeadlessFilm' });
   if (composition.durationInFrames !== totalFrames(request)) throw new Error('Original recipe duration mismatch');
   let last = -1;
-  await renderMedia({ ...common, composition, codec: 'h264', audioCodec: 'aac', pixelFormat: 'yuv420p', crf: 18,
+  await renderMedia({ ...common, composition, codec: 'h264', audioCodec: 'aac', pixelFormat: 'yuv420p', colorSpace: 'bt709', crf: 18,
     concurrency: 2, timeoutInMilliseconds: 120000, outputLocation: path.join(output, 'video.mp4'),
     onProgress: ({ progress }) => { const pct = Math.floor(progress * 10) * 10; if (pct !== last) { console.log(`Render ${pct}%`); last = pct; } } });
   run(process.execPath, [path.join(wb, 'scripts/verify-headless.mjs'), path.join(output, 'video.mp4'), String(totalFrames(request)), output]);

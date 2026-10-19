@@ -17,8 +17,12 @@ const info = JSON.parse(run('ffprobe', ['-v', 'error', '-count_frames', '-show_s
 const v = info.streams.find((stream) => stream.codec_type === 'video');
 const a = info.streams.find((stream) => stream.codec_type === 'audio');
 const expectedDuration = frames / 30;
+writeFileSync(path.join(output, 'ffprobe.json'), JSON.stringify(info, null, 2));
+const measured = { codec: v?.codec_name, width: v?.width, height: v?.height, fps: v?.avg_frame_rate,
+  pixelFormat: v?.pix_fmt, colorSpace: v?.color_space, colorRange: v?.color_range,
+  frames: v?.nb_read_frames, expectedFrames: frames };
 if (!v || v.codec_name !== 'h264' || v.width !== 1920 || v.height !== 1080 || v.avg_frame_rate !== '30/1' || v.pix_fmt !== 'yuv420p' || Number(v.nb_read_frames) !== frames)
-  throw new Error('Video codec, dimensions, fps, pixel format or frame count failed verification');
+  throw new Error(`Video verification failed: ${JSON.stringify(measured)}`);
 if (!a || a.codec_name !== 'aac' || Math.abs(Number(a.duration) - expectedDuration) > 0.15)
   throw new Error('Missing AAC audio or incorrect audio duration');
 if (Math.abs(Number(info.format.duration) - expectedDuration) > 0.15) throw new Error('Incorrect MP4 duration');
@@ -31,8 +35,9 @@ const sound = run('ffmpeg', ['-hide_banner', '-i', video, '-vn', '-af', 'volumed
 const peak = Number(/max_volume:\s*(-?[\d.]+) dB/.exec(sound)?.[1]);
 if (!Number.isFinite(peak) || peak < -60) throw new Error('Audio stream is silent');
 run('ffmpeg', ['-v', 'error', '-y', '-i', video, '-vf', `fps=${6 / expectedDuration},scale=640:360,tile=3x2`, '-frames:v', '1', path.join(output, 'contact-sheet.jpg')]);
-writeFileSync(path.join(output, 'ffprobe.json'), JSON.stringify(info, null, 2));
-writeFileSync(path.join(output, 'qa.json'), JSON.stringify({ passed: true, video: { codec: v.codec_name, width: v.width, height: v.height, fps: v.avg_frame_rate, frames, duration: Number(info.format.duration) },
+writeFileSync(path.join(output, 'qa.json'), JSON.stringify({ passed: true, video: { codec: v.codec_name, width: v.width, height: v.height,
+  fps: v.avg_frame_rate, frames, duration: Number(v.duration), pixelFormat: v.pix_fmt, colorSpace: v.color_space, colorRange: v.color_range },
+  containerDuration: Number(info.format.duration),
   audio: { codec: a.codec_name, channels: a.channels, duration: Number(a.duration), peakDb: peak },
   fullDecode: 'passed', pictureLumaRange: [Math.min(...yValues), Math.max(...yValues)] }, null, 2));
 console.log('ffprobe, full decode, picture and audible audio checks passed');

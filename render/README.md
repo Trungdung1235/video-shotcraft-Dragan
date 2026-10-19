@@ -69,7 +69,7 @@ node workbench/scripts/render-headless.mjs render/request.json work/render-outpu
 FFmpeg/ffprobe must be installed. Optionally set
 `REMOTION_BROWSER_EXECUTABLE=/usr/bin/chromium`; otherwise Remotion downloads its
 matching headless browser. All intermediates and private sources are ignored by
-Git. The final output is H.264/yuv420p MP4, 1920×1080, 30fps, with audible AAC
+Git. The final output is H.264/yuv420p MP4, BT.709 limited range, 1920×1080, 30fps, with audible AAC
 sound effects from the original repository. No BGM or paid audio generation is
 required. For custom narration/music, add an explicit audio source/track in a PR.
 
