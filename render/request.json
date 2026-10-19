@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "prompt": "Create a short Shotcraft demo from the repository screenshot: reveal the image, then dive toward the focal card. Use the original recipes and sound effects.",
+  "title": "From prompt to finished film",
+  "images": [{ "repo": "template/public/textures/live/card4-hires.png" }],
+  "shots": [
+    { "recipe": "tilt-reveal", "image": 0, "caption": "Your image. Original cinematic motion." },
+    { "recipe": "drone-dive-landing", "image": 0, "caption": "Rendered headlessly with Video Shotcraft" }
+  ]
+}

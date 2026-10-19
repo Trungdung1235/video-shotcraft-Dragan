@@ -4,6 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "render:headless": "node scripts/render-headless.mjs",
+    "test:headless": "node --test scripts/headless-checks.mjs",
     "test:themes": "node scripts/test-themes.mjs",
     "test:legacy": "node scripts/gen-index.mjs && node scripts/test-legacy.mjs",
     "gen": "node scripts/gen-index.mjs",
@@ -33,7 +35,9 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@remotion/bundler": "4.0.484",
     "@remotion/cli": "4.0.484",
+    "@remotion/renderer": "4.0.484",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@types/three": "^0.185.0",
