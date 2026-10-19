@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 交付后一键打开工作台：链接成片工程 → 生成索引 → 起 dev server → 浏览器打开并自动导入。
 //
-//   node scripts/open.mjs <成片工程目录> [--port 5198] [--no-open] [--no-import]
+//   node scripts/open.mjs <成片工程目录> [--port 5198] [--host localhost] [--link-only] [--no-open] [--no-import]
 //   node scripts/open.mjs                # 不给目录：沿用上次链接的工程
 //
 // 成片工程目录 = 含 package.json / remotion.config.ts 的那一层，源码在 <目录>/src（或 <目录>/remotion/src）。
@@ -24,7 +24,8 @@ const args = process.argv.slice(2);
 const flag = (k) => args.includes(`--${k}`);
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args[i + 1] : d; };
 const PORT = Number(opt("port", "5198"));
-const positional = args.filter((a, i) => !a.startsWith("--") && !(i > 0 && args[i - 1] === "--port"));
+const HOST = opt("host", "localhost");
+const positional = args.filter((a, i) => !a.startsWith("--") && !(i > 0 && ["--port", "--host"].includes(args[i - 1])));
 
 const isLink = (p) => { try { return lstatSync(p).isSymbolicLink(); } catch { return false; } };
 const rmLink = (p) => { if (isLink(p)) unlinkSync(p); };
@@ -87,6 +88,9 @@ if (!existsSync(join(wb, "node_modules"))) {
   if (r.status !== 0) process.exit(r.status ?? 1);
 }
 
+// Container creation can prepare links without leaving a server behind.
+if (flag("link-only")) process.exit(0);
+
 // —— 4. dev server ——
 const url = `http://localhost:${PORT}/`;
 const alive = async () => { try { const r = await fetch(url, { signal: AbortSignal.timeout(1500) }); return r.ok; } catch { return false; } };
@@ -134,7 +138,7 @@ if (await alive()) {
 } else {
   const logFile = join(wb, ".dev.log");
   const fd = openSync(logFile, "a");
-  const child = spawn(process.execPath, [viteBin, "--port", String(PORT), "--strictPort"], {
+  const child = spawn(process.execPath, [viteBin, "--port", String(PORT), "--strictPort", "--host", HOST], {
     cwd: wb, detached: true, stdio: ["ignore", fd, fd],
   });
   child.unref();

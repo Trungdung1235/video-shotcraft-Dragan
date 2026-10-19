@@ -161,6 +161,11 @@ Each card lives in `references/shots/<category>/<card>.md`, with its Remotion im
 
 ## Motion Workbench
 
+**Browser-only setup:** [Open the original Workbench in GitHub Codespaces
+(Vietnamese guide)](docs/CODESPACES.vi.md). The dev container installs Remotion's
+Linux requirements and FFmpeg, starts port 5198, and uses private port forwarding.
+Check your Codespaces quota and billing settings before creating a codespace.
+
 After delivery the skill opens a CapCut-style editor in your browser
 (`node workbench/scripts/open.mjs <project>`). The film is split into shot, transition, caption and SFX tracks
 exactly as authored. Select any shot to edit its copy, font sizes and colours, move, trim or speed-ramp clips,
